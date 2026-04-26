@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Windows 11</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0078d4; font-family:'Segoe UI',sans-serif; overflow:hidden; width:100vw; height:100vh; }
+
+  /* ── TASKBAR ── */
+  #taskbar {
+    position:fixed; bottom:0; left:0; width:100%; height:48px;
+    background:rgba(20,20,30,0.85); backdrop-filter:blur(20px);
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    z-index:100; border-top:1px solid rgba(255,255,255,0.1);
+  }
+  .tb-icon {
+    width:36px; height:36px; border-radius:6px;
+    background:rgba(255,255,255,0.1); display:flex; align-items:center;
+    justify-content:center; cursor:pointer; transition:background .2s;
+    font-size:20px;
+  }
+  .tb-icon:hover { background:rgba(255,255,255,0.2); }
+  #clock {
+    position:absolute; right:16px; color:#fff; font-size:12px;
+    text-align:right; line-height:1.4;
+  }
+
+  /* ── DESKTOP ICONS ── */
+  .desk-icon {
+    position:absolute; display:flex; flex-direction:column;
+    align-items:center; gap:4px; cursor:pointer; padding:6px;
+    border-radius:4px; width:80px;
+  }
+  .desk-icon:hover { background:rgba(255,255,255,0.15); }
+  .desk-icon .ico { width:48px; height:48px; border-radius:4px; }
+  .desk-icon span { color:#fff; font-size:11px; text-align:center; text-shadow:0 1px 3px #000; }
+
+  /* ── EXPLORER WINDOW ── */
+  #explorer {
+    position:absolute; top:60px; left:80px; width:700px; height:460px;
+    background:#202020; border-radius:8px; overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,.6);
+    display:flex; flex-direction:column;
+  }
+  #explorer-title {
+    background:#2d2d2d; height:36px; display:flex; align-items:center;
+    padding:0 12px; gap:8px; flex-shrink:0;
+  }
+  .win-btn { width:12px; height:12px; border-radius:50%; cursor:pointer; }
+  .wc { background:#ff5f57; } .wm { background:#febc2e; } .wx { background:#28c840; }
+  #explorer-title span { color:#ccc; font-size:13px; margin-left:8px; }
+  #explorer-body {
+    display:flex; flex:1; overflow:hidden;
+  }
+  #sidebar {
+    width:160px; background:#181818; padding:10px 0; flex-shrink:0;
+    border-right:1px solid #333;
+  }
+  .sb-item {
+    padding:8px 16px; color:#aaa; font-size:12px; cursor:pointer;
+    display:flex; align-items:center; gap:8px;
+  }
+  .sb-item:hover { background:#2a2a2a; color:#fff; }
+  #files-area {
+    flex:1; padding:16px; display:flex; flex-wrap:wrap;
+    gap:12px; align-content:flex-start; overflow-y:auto;
+    background:#202020;
+  }
+  .file-item {
+    width:80px; display:flex; flex-direction:column; align-items:center;
+    gap:4px; cursor:pointer; padding:6px; border-radius:4px;
+  }
+  .file-item:hover { background:rgba(255,255,255,0.1); }
+  .file-item .fi { font-size:36px; }
+  .file-item span { color:#ccc; font-size:10px; text-align:center; }
+
+  /* ── OVERLAY STAGES ── */
+  #glitch-overlay {
+    position:fixed; inset:0; z-index:500; pointer-events:none;
+    opacity:0; mix-blend-mode:screen;
+  }
+  #red-overlay {
+    position:fixed; inset:0; z-index:600; pointer-events:none;
+    background:red; opacity:0;
+  }
+  #dark-overlay {
+    position:fixed; inset:0; z-index:700; pointer-events:none;
+    background:#000; opacity:0;
+  }
+
+  /* ── SONIC CONTAINER ── */
+  #sonic-wrap {
+    position:fixed; inset:0; z-index:800;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none;
+  }
+
+  /* ── SONIC SVG full body ── */
+  #sonic-svg {
+    width:380px; height:500px;
+    filter:drop-shadow(0 0 40px #ff0000) drop-shadow(0 0 80px #800000);
+    transform:scale(0.3) translateY(200px);
+    transition:none;
+  }
+
+  /* ── TEXT MESSAGES ── */
+  #msg {
+    position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+    color:#ff0000; font-size:28px; font-weight:700; z-index:1000;
+    text-shadow:0 0 20px #ff0000, 0 0 40px #ff0000;
+    font-family:'Courier New',monospace; opacity:0;
+    white-space:nowrap; letter-spacing:4px;
+    text-align:center;
+  }
+
+  /* ── BLOOD DRIPS ── */
+  .drip {
+    position:fixed; top:0; width:6px; border-radius:0 0 4px 4px;
+    background:linear-gradient(#8b0000, #ff0000); z-index:900;
+    opacity:0;
+  }
+
+  /* ── SCREEN TEAR ── */
+  #screen-tear {
+    position:fixed; inset:0; z-index:550; pointer-events:none; opacity:0;
+    overflow:hidden;
+  }
+  .tear-line {
+    position:absolute; left:0; right:0; height:4px;
+    background:rgba(255,0,0,0.8);
+    animation:tearMove 0.1s linear infinite;
+  }
+
+  /* ── STATIC NOISE ── */
+  #noise {
+    position:fixed; inset:0; z-index:530; pointer-events:none;
+    opacity:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size:200px 200px; mix-blend-mode:overlay;
+  }
+
+  /* ── CORRUPT TEXT ── */
+  #corrupt-text {
+    position:fixed; top:30%; left:50%; transform:translate(-50%,-50%);
+    z-index:850; color:#ff0000; font-family:'Courier New',monospace;
+    font-size:14px; opacity:0; text-align:center; line-height:2;
+    text-shadow:0 0 8px #ff0000;
+    pointer-events:none;
+  }
+
+  /* ── ERROR BOX ── */
+  #error-box {
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:400px; background:#c0c0c0; border:2px solid #fff;
+    box-shadow:3px 3px #000; z-index:900; display:none;
+  }
+  #error-title {
+    background:#000080; color:#fff; padding:4px 8px; font-size:12px;
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:'MS Sans Serif',sans-serif;
+  }
+  #error-body { padding:16px; font-size:12px; font-family:'MS Sans Serif',sans-serif; }
+  #error-body p { margin-bottom:12px; }
+  #error-body button {
+    background:#c0c0c0; border:2px solid; border-color:#fff #000 #000 #fff;
+    padding:4px 16px; cursor:pointer; font-size:12px;
+    font-family:'MS Sans Serif',sans-serif;
+  }
+  #error-body button:active { border-color:#000 #fff #fff #000; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes tearMove { 0%{top:10%} 100%{top:90%} }
+  @keyframes glitchShift {
+    0%{transform:translate(0)}
+    20%{transform:translate(-8px,3px) skewX(2deg)}
+    40%{transform:translate(8px,-3px) skewX(-2deg)}
+    60%{transform:translate(-4px,6px)}
+    80%{transform:translate(4px,-6px)}
+    100%{transform:translate(0)}
+  }
+  @keyframes redPulse {
+    0%,100%{opacity:0.15} 50%{opacity:0.45}
+  }
+  @keyframes eyeGlow {
+    0%,100%{filter:drop-shadow(0 0 30px #ff0000) drop-shadow(0 0 60px #800000)}
+    50%{filter:drop-shadow(0 0 60px #ff0000) drop-shadow(0 0 120px #ff0000) drop-shadow(0 0 200px #ff6600)}
+  }
+  @keyframes sonicBob {
+    0%,100%{transform:translateY(0) scale(1)}
+    50%{transform:translateY(-12px) scale(1.01)}
+  }
+  @keyframes msgFlicker {
+    0%,100%{opacity:1} 30%{opacity:0.4} 60%{opacity:0.8} 70%{opacity:0.1}
+  }
+  @keyframes dripDown {
+    0%{height:0;opacity:1} 100%{height:120px;opacity:0.8}
+  }
+  @keyframes shake {
+    0%,100%{transform:translate(0)} 10%{transform:translate(-6px,-6px)} 20%{transform:translate(6px,6px)}
+    30%{transform:translate(-6px,6px)} 40%{transform:translate(6px,-6px)}
+    50%{transform:translate(-10px,0)} 60%{transform:translate(10px,0)}
+    70%{transform:translate(0,-10px)} 80%{transform:translate(0,10px)}
+    90%{transform:translate(-4px,4px)}
+  }
+  @keyframes corruptScroll {
+    0%{transform:translate(-50%,-50%) translateY(0)}
+    100%{transform:translate(-50%,-50%) translateY(-60px)}
+  }
+  @keyframes scanlines {
+    0%{background-position:0 0} 100%{background-position:0 4px}
+  }
+  #scanlines {
+    position:fixed; inset:0; z-index:820; pointer-events:none; opacity:0;
+    background:repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,0.4) 2px, rgba(0,0,0,0.4) 4px
+    );
+    animation:scanlines 0.05s linear infinite;
+  }
+
+  .glitching {
+    animation:glitchShift 0.08s steps(1) infinite !important;
+  }
+  .shake-it {
+    animation:shake 0.1s steps(1) infinite !important;
+  }
+</style>
+</head>
+<body>
+
+<!-- DESKTOP ICONS -->
+<div class="desk-icon" style="top:40px;left:40px">
+  <div class="ico" style="background:linear-gradient(135deg,#1e88e5,#0d47a1);display:flex;align-items:center;justify-content:center;font-size:28px;">&#128193;</div>
+  <span>This PC</span>
+</div>
+<div class="desk-icon" style="top:140px;left:40px">
+  <div class="ico" style="background:linear-gradient(135deg,#fbc02d,#f57f17);display:flex;align-items:center;justify-content:center;font-size:28px;">&#128465;</div>
+  <span>Recycle Bin</span>
+</div>
+<div class="desk-icon" style="top:240px;left:40px">
+  <div class="ico" style="background:linear-gradient(135deg,#43a047,#1b5e20);display:flex;align-items:center;justify-content:center;font-size:28px;">&#128196;</div>
+  <span>sonic_rewrite.exe</span>
+</div>
+
+<!-- EXPLORER WINDOW -->
+<div id="explorer">
+  <div id="explorer-title">
+    <div class="win-btn wc"></div>
+    <div class="win-btn wm"></div>
+    <div class="win-btn wx"></div>
+    <span>File Explorer — C:\Users\User\Downloads</span>
+  </div>
+  <div id="explorer-body">
+    <div id="sidebar">
+      <div class="sb-item">&#127968; Home</div>
+      <div class="sb-item">&#11088; Quick Access</div>
+      <div class="sb-item">&#9729; OneDrive</div>
+      <div class="sb-item">&#128187; This PC</div>
+      <div class="sb-item">&#128194; Downloads</div>
+      <div class="sb-item">&#128247; Pictures</div>
+      <div class="sb-item">&#127925; Music</div>
+      <div class="sb-item">&#127909; Videos</div>
+    </div>
+    <div id="files-area">
+      <div class="file-item"><div class="fi">&#128193;</div><span>Games</span></div>
+      <div class="file-item"><div class="fi">&#128195;</div><span>screenshot_01.png</span></div>
+      <div class="file-item"><div class="fi">&#128195;</div><span>notes.txt</span></div>
+      <div class="file-item"><div class="fi">&#128190;</div><span>setup.exe</span></div>
+      <div class="file-item" id="sonic-file" style="cursor:pointer;" onclick="startInfection()">
+        <div class="fi" style="filter:drop-shadow(0 0 8px #ff0000)">&#128190;</div>
+        <span style="color:#ff4444">SONIC_REWRITE.EXE</span>
+      </div>
+      <div class="file-item"><div class="fi">&#128193;</div><span>Videos</span></div>
+      <div class="file-item"><div class="fi">&#128195;</div><span>homework.docx</span></div>
+      <div class="file-item"><div class="fi">&#128195;</div><span>passwords.txt</span></div>
+      <div class="file-item"><div class="fi">&#128190;</div><span>game_v2.exe</span></div>
+      <div class="file-item"><div class="fi">&#128193;</div><span>Backup</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- TASKBAR -->
+<div id="taskbar">
+  <div class="tb-icon">&#128269;</div>
+  <div class="tb-icon">&#128197;</div>
+  <div class="tb-icon">&#127760;</div>
+  <div class="tb-icon">&#128193;</div>
+  <div id="clock"></div>
+</div>
+
+<!-- ERROR BOX -->
+<div id="error-box">
+  <div id="error-title">
+    <span>&#9888; System Warning</span>
+    <button onclick="this.closest('#error-box').style.display='none'" style="background:#c0c0c0;border:1px solid #000;padding:0 4px;font-size:10px;cursor:pointer;">X</button>
+  </div>
+  <div id="error-body">
+    <p>&#9888; SONIC_REWRITE.EXE has been detected.<br>This file contains unknown data signatures.</p>
+    <p>Do you want to execute this file?</p>
+    <button onclick="dismissError()">Cancel</button>
+    &nbsp;
+    <button onclick="dismissError()">Ignore</button>
+  </div>
+</div>
+
+<!-- OVERLAYS -->
+<div id="noise"></div>
+<div id="screen-tear"><div class="tear-line"></div></div>
+<div id="glitch-overlay"></div>
+<div id="red-overlay"></div>
+<div id="dark-overlay"></div>
+<div id="scanlines"></div>
+
+<!-- SONIC FULL BODY SVG -->
+<div id="sonic-wrap">
+  <svg id="sonic-svg" viewBox="0 0 380 500" xmlns="http://www.w3.org/2000/svg">
+    <!-- SHADOW / GROUND -->
+    <ellipse cx="190" cy="490" rx="90" ry="14" fill="rgba(0,0,0,0.6)"/>
+
+    <!-- LEGS -->
+    <!-- Left leg -->
+    <path d="M 148 330 Q 130 370 118 400 Q 110 420 105 440" stroke="#1a1a2e" stroke-width="28" stroke-linecap="round" fill="none"/>
+    <!-- Right leg -->
+    <path d="M 195 330 Q 210 370 222 400 Q 230 420 235 440" stroke="#1a1a2e" stroke-width="28" stroke-linecap="round" fill="none"/>
+
+    <!-- SHOES left -->
+    <ellipse cx="100" cy="448" rx="32" ry="16" fill="#cc0000" transform="rotate(-10,100,448)"/>
+    <rect x="68" y="436" width="64" height="12" rx="6" fill="#ffffff" opacity="0.3"/>
+    <ellipse cx="100" cy="448" rx="32" ry="16" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.5" transform="rotate(-10,100,448)"/>
+    <!-- buckle left -->
+    <rect x="82" y="438" width="14" height="8" rx="2" fill="#ffffff" opacity="0.8"/>
+
+    <!-- SHOES right -->
+    <ellipse cx="240" cy="448" rx="32" ry="16" fill="#cc0000" transform="rotate(10,240,448)"/>
+    <rect x="208" y="436" width="64" height="12" rx="6" fill="#ffffff" opacity="0.3"/>
+    <ellipse cx="240" cy="448" rx="32" ry="16" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.5" transform="rotate(10,240,448)"/>
+    <rect x="224" y="438" width="14" height="8" rx="2" fill="#ffffff" opacity="0.8"/>
+
+    <!-- BODY / TORSO -->
+    <ellipse cx="172" cy="260" rx="72" ry="90" fill="#1a1a2e"/>
+    <!-- chest cream -->
+    <ellipse cx="172" cy="285" rx="42" ry="52" fill="#0d0d1a"/>
+    <!-- belly detail -->
+    <ellipse cx="172" cy="295" rx="32" ry="36" fill="#111122" opacity="0.6"/>
+
+    <!-- ARMS -->
+    <!-- Left arm raised -->
+    <path d="M 108 220 Q 70 180 50 160 Q 38 148 30 140" stroke="#1a1a2e" stroke-width="26" stroke-linecap="round" fill="none"/>
+    <!-- Left hand -->
+    <circle cx="28" cy="134" r="20" fill="#1a1a2e"/>
+    <!-- claws left -->
+    <line x1="14" y1="118" x2="8" y2="108" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    <line x1="26" y1="114" x2="22" y2="102" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    <line x1="38" y1="118" x2="36" y2="106" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- Right arm -->
+    <path d="M 238 220 Q 268 185 290 165 Q 302 152 312 144" stroke="#1a1a2e" stroke-width="26" stroke-linecap="round" fill="none"/>
+    <!-- Right hand -->
+    <circle cx="316" cy="138" r="20" fill="#1a1a2e"/>
+    <!-- claws right -->
+    <line x1="302" y1="122" x2="296" y2="112" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    <line x1="314" y1="118" x2="310" y2="106" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    <line x1="326" y1="122" x2="324" y2="110" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- HEAD -->
+    <ellipse cx="172" cy="155" rx="88" ry="95" fill="#1a1a2e"/>
+
+    <!-- SPINES / HEAD QUILLS -->
+    <!-- back spine 1 -->
+    <path d="M 112 100 Q 60 40 80 -10" stroke="#1a1a2e" stroke-width="22" stroke-linecap="round" fill="none"/>
+    <!-- back spine 2 -->
+    <path d="M 130 80 Q 95 20 120 -20" stroke="#1a1a2e" stroke-width="20" stroke-linecap="round" fill="none"/>
+    <!-- back spine 3 -->
+    <path d="M 150 70 Q 130 10 158 -15" stroke="#1a1a2e" stroke-width="18" stroke-linecap="round" fill="none"/>
+    <!-- top head spines forward -->
+    <path d="M 230 95 Q 280 50 260 0" stroke="#1a1a2e" stroke-width="20" stroke-linecap="round" fill="none"/>
+    <path d="M 210 78 Q 255 35 240 -5" stroke="#1a1a2e" stroke-width="18" stroke-linecap="round" fill="none"/>
+    <path d="M 190 72 Q 225 30 216 -8" stroke="#1a1a2e" stroke-width="16" stroke-linecap="round" fill="none"/>
+
+    <!-- EAR left -->
+    <path d="M 100 115 Q 80 70 108 80" fill="#1a1a2e"/>
+    <!-- ear inner -->
+    <path d="M 102 112 Q 86 80 108 86" fill="#2d0000"/>
+
+    <!-- EAR right -->
+    <path d="M 242 110 Q 264 68 238 78" fill="#1a1a2e"/>
+    <path d="M 240 108 Q 258 72 238 82" fill="#2d0000"/>
+
+    <!-- MUZZLE -->
+    <ellipse cx="172" cy="185" rx="50" ry="38" fill="#0d0d1a"/>
+    <!-- nose -->
+    <ellipse cx="172" cy="166" rx="8" ry="6" fill="#1a0000"/>
+
+    <!-- MOUTH — evil grin -->
+    <path d="M 136 192 Q 155 215 172 218 Q 189 215 208 192" stroke="#cc0000" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <!-- teeth -->
+    <path d="M 147 200 L 152 212 L 158 200" fill="#ffffff" opacity="0.9"/>
+    <path d="M 160 206 L 165 218 L 170 206" fill="#ffffff" opacity="0.9"/>
+    <path d="M 174 206 L 179 218 L 184 206" fill="#ffffff" opacity="0.9"/>
+    <path d="M 188 200 L 193 212 L 198 200" fill="#ffffff" opacity="0.9"/>
+    <!-- fang left -->
+    <path d="M 138 196 L 142 210 L 146 196" fill="#ffffff"/>
+    <!-- fang right -->
+    <path d="M 200 196 L 204 210 L 208 196" fill="#ffffff"/>
+
+    <!-- EYES LEFT — glowing red -->
+    <!-- white sclera dark -->
+    <ellipse cx="145" cy="148" rx="24" ry="26" fill="#1a0000"/>
+    <!-- iris -->
+    <ellipse cx="145" cy="148" rx="17" ry="19" fill="#cc0000"/>
+    <!-- pupil -->
+    <ellipse cx="145" cy="148" rx="9" ry="11" fill="#000000"/>
+    <!-- shine -->
+    <ellipse cx="139" cy="141" rx="4" ry="5" fill="#ff4444" opacity="0.8"/>
+    <!-- blood tear left -->
+    <path d="M 138 172 Q 136 185 134 200 Q 133 210 132 225" stroke="#cc0000" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M 145 172 Q 143 188 142 205" stroke="#cc0000" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.7"/>
+    <!-- glow ring -->
+    <ellipse cx="145" cy="148" rx="24" ry="26" fill="none" stroke="#ff0000" stroke-width="2" opacity="0.6"/>
+
+    <!-- EYES RIGHT — glowing red -->
+    <ellipse cx="202" cy="148" rx="24" ry="26" fill="#1a0000"/>
+    <ellipse cx="202" cy="148" rx="17" ry="19" fill="#cc0000"/>
+    <ellipse cx="202" cy="148" rx="9" ry="11" fill="#000000"/>
+    <ellipse cx="196" cy="141" rx="4" ry="5" fill="#ff4444" opacity="0.8"/>
+    <!-- blood tear right -->
+    <path d="M 208 172 Q 210 185 212 200 Q 213 210 214 225" stroke="#cc0000" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M 201" cy="172" stroke="#cc0000" stroke-width="2.5" fill="none" opacity="0.7"/>
+    <path d="M 201 172 Q 202 188 203 205" stroke="#cc0000" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.7"/>
+    <ellipse cx="202" cy="148" rx="24" ry="26" fill="none" stroke="#ff0000" stroke-width="2" opacity="0.6"/>
+
+    <!-- BROW left — evil -->
+    <path d="M 124 128 Q 140 120 164 124" stroke="#0a0a0a" stroke-width="8" stroke-linecap="round" fill="none"/>
+    <!-- BROW right — evil -->
+    <path d="M 184 124 Q 208 120 224 128" stroke="#0a0a0a" stroke-width="8" stroke-linecap="round" fill="none"/>
+
+    <!-- GLITCH LINES on body -->
+    <line x1="100" y1="220" x2="200" y2="218" stroke="#ff0000" stroke-width="2" opacity="0.4"/>
+    <line x1="130" y1="260" x2="220" y2="255" stroke="#ff0000" stroke-width="1.5" opacity="0.3"/>
+    <line x1="90" y1="300" x2="180" y2="298" stroke="#ff0000" stroke-width="1" opacity="0.25"/>
+
+    <!-- CORRUPTION PIXELS -->
+    <rect x="80" y="140" width="8" height="8" fill="#ff0000" opacity="0.6"/>
+    <rect x="250" y="200" width="6" height="6" fill="#ff0000" opacity="0.5"/>
+    <rect x="160" y="320" width="10" height="5" fill="#ff0000" opacity="0.4"/>
+    <rect x="60" y="260" width="5" height="10" fill="#ff0000" opacity="0.5"/>
+    <rect x="290" y="150" width="7" height="7" fill="#ff0000" opacity="0.6"/>
+
+    <!-- EYE GLOW EXTRA -->
+    <ellipse cx="145" cy="148" rx="30" ry="32" fill="none" stroke="#ff0000" stroke-width="1" opacity="0.3">
+      <animate attributeName="r" values="30;35;30" dur="1.5s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.3;0.7;0.3" dur="1.5s" repeatCount="indefinite"/>
+    </ellipse>
+    <ellipse cx="202" cy="148" rx="30" ry="32" fill="none" stroke="#ff0000" stroke-width="1" opacity="0.3">
+      <animate attributeName="opacity" values="0.3;0.7;0.3" dur="1.5s" begin="0.3s" repeatCount="indefinite"/>
+    </ellipse>
+
+    <!-- Animated glow pupils -->
+    <ellipse cx="145" cy="148" rx="9" ry="11" fill="#ff0000" opacity="0">
+      <animate attributeName="opacity" values="0;0.5;0" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+    <ellipse cx="202" cy="148" rx="9" ry="11" fill="#ff0000" opacity="0">
+      <animate attributeName="opacity" values="0;0.5;0" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+    </ellipse>
+  </svg>
+</div>
+
+<!-- CORRUPT TEXT -->
+<div id="corrupt-text">
+  ERR0R_SYS32_C0RRUPT..............<br>
+  &#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608; 100%<br>
+  FILESYSTEM OVERWRITE COMPLETE<br>
+  YOUR SOUL BELONGS TO ME NOW<br>
+  ████████████ DELETING C:\Windows\System32<br>
+  ████████████ OVERWRITING BIOS<br>
+  THERE IS NO ESCAPE
+</div>
+
+<!-- MSG -->
+<div id="msg">I FOUND YOU</div>
+
+<script>
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').innerHTML =
+      now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) + '<br>' +
+      now.toLocaleDateString('de-DE');
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  let infected = false;
+
+  function dismissError() {
+    document.getElementById('error-box').style.display = 'none';
+    // triggers real infection after dismiss
+    setTimeout(stage2, 600);
+  }
+
+  function startInfection() {
+    if (infected) return;
+    infected = true;
+    // Show error box first
+    document.getElementById('error-box').style.display = 'block';
+    // Also start subtle glitch
+    setTimeout(subtleGlitch, 800);
+  }
+
+  function subtleGlitch() {
+    const noise = document.getElementById('noise');
+    noise.style.transition = 'opacity 0.3s';
+    noise.style.opacity = '0.08';
+    const explorer = document.getElementById('explorer');
+    let t = 0;
+    const iv = setInterval(() => {
+      t += 1;
+      if (t % 3 === 0) {
+        explorer.style.transform = `translate(${(Math.random()-0.5)*6}px,${(Math.random()-0.5)*4}px)`;
+      } else {
+        explorer.style.transform = '';
+      }
+      if (t > 20) {
+        clearInterval(iv);
+        explorer.style.transform = '';
+      }
+    }, 120);
+  }
+
+  function stage2() {
+    // Phase 2: screen tear + red flash
+    const st = document.getElementById('screen-tear');
+    const ro = document.getElementById('red-overlay');
+    st.style.transition = 'opacity 0.2s';
+    st.style.opacity = '1';
+
+    let flashes = 0;
+    const flashIv = setInterval(() => {
+      flashes++;
+      ro.style.opacity = flashes % 2 === 0 ? '0.3' : '0';
+      if (flashes >= 6) { clearInterval(flashIv); stage3(); }
+    }, 120);
+  }
+
+  function stage3() {
+    // Phase 3: full screen shake + noise increase + explorer goes corrupt
+    document.body.classList.add('shake-it');
+    const noise = document.getElementById('noise');
+    noise.style.opacity = '0.25';
+    const explorer = document.getElementById('explorer');
+    explorer.classList.add('glitching');
+
+    // Corrupt file names
+    const files = document.querySelectorAll('.file-item span');
+    const corrupt = ['ERR0R','Ø̴̢̝̘͇̤̜̿','NULL_PTR','̸D̸E̸L','CORRUPT','̴̧S̸Y̸S̸','0xDEAD','VOID'];
+    files.forEach((f, i) => {
+      setTimeout(() => {
+        f.style.color = '#ff0000';
+        f.textContent = corrupt[i % corrupt.length];
+      }, i * 80);
+    });
+
+    // Drips
+    for (let i = 0; i < 12; i++) {
+      setTimeout(() => addDrip(), i * 180);
+    }
+
+    setTimeout(stage4, 1800);
+  }
+
+  function addDrip() {
+    const d = document.createElement('div');
+    d.className = 'drip';
+    d.style.left = Math.random() * 100 + 'vw';
+    d.style.animation = `dripDown ${0.8 + Math.random()*0.8}s ease-in forwards`;
+    d.style.opacity = '0';
+    document.body.appendChild(d);
+    d.style.opacity = '1';
+    setTimeout(() => d.remove(), 2000);
+  }
+
+  function stage4() {
+    // Phase 4: blackout then Sonic appears
+    document.body.classList.remove('shake-it');
+    const dark = document.getElementById('dark-overlay');
+    dark.style.transition = 'opacity 0.4s';
+    dark.style.opacity = '1';
+
+    setTimeout(() => {
+      // hide explorer
+      document.getElementById('explorer').style.display = 'none';
+      document.getElementById('screen-tear').style.opacity = '0';
+      document.getElementById('noise').style.opacity = '0.15';
+
+      // Scanlines on
+      document.getElementById('scanlines').style.opacity = '1';
+
+      // Show Sonic
+      const sw = document.getElementById('sonic-wrap');
+      sw.style.opacity = '1';
+      sw.style.pointerEvents = 'auto';
+      sw.style.background = 'radial-gradient(ellipse at center, #1a0000 0%, #000000 70%)';
+
+      const svg = document.getElementById('sonic-svg');
+      svg.style.transition = 'transform 0.8s cubic-bezier(0.34,1.56,0.64,1), filter 0.8s ease';
+      svg.style.transform = 'scale(1) translateY(0)';
+      svg.style.animation = 'eyeGlow 2s ease-in-out infinite, sonicBob 3s ease-in-out infinite';
+
+      dark.style.opacity = '0';
+
+      // Corrupt text
+      setTimeout(() => {
+        const ct = document.getElementById('corrupt-text');
+        ct.style.transition = 'opacity 0.5s';
+        ct.style.opacity = '1';
+        ct.style.animation = 'corruptScroll 8s linear infinite';
+      }, 600);
+
+      // MSG
+      setTimeout(() => {
+        const msg = document.getElementById('msg');
+        msg.style.transition = 'opacity 0.3s';
+        msg.style.opacity = '1';
+        msg.style.animation = 'msgFlicker 2s steps(1) infinite';
+        cycleMessages(msg);
+      }, 1200);
+
+      // Continuous drips
+      setInterval(() => addDrip(), 400);
+
+      // Periodic screen shakes
+      setInterval(() => {
+        document.getElementById('sonic-wrap').classList.add('shake-it');
+        setTimeout(() => document.getElementById('sonic-wrap').classList.remove('shake-it'), 300);
+      }, 4000);
+
+      // Glitch flashes on sonic
+      setInterval(() => {
+        svg.style.filter = 'drop-shadow(0 0 80px #ff0000) drop-shadow(0 0 160px #ff0000) brightness(2)';
+        setTimeout(() => {
+          svg.style.filter = 'drop-shadow(0 0 40px #ff0000) drop-shadow(0 0 80px #800000)';
+        }, 80);
+      }, 3000);
+
+    }, 500);
+  }
+
+  const messages = [
+    'I FOUND YOU',
+    'YOU CANNOT RUN',
+    'YOUR SOUL IS MINE',
+    'NO ESCAPE',
+    'GAME OVER',
+    'WHY DO YOU RUN?',
+    'SYSTEM CORRUPTED',
+    'I AM INEVITABLE',
+  ];
+  let msgIdx = 0;
+  function cycleMessages(el) {
+    setInterval(() => {
+      msgIdx = (msgIdx + 1) % messages.length;
+      el.style.opacity = '0';
+      setTimeout(() => {
+        el.textContent = messages[msgIdx];
+        el.style.opacity = '1';
+      }, 300);
+    }, 3500);
+  }
+
+  // Auto-start after 3s for demo
+  // Remove these 2 lines if you want click-only start:
+  // setTimeout(startInfection, 3000);
+</script>
+</body>
+</html>
